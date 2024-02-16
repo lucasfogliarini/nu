@@ -37,11 +37,11 @@ async function loadBills(){
             },
         ],
         columns: [
-            {title: "Situação", field: "state"},
-            {title: "Data de Fechamento", field: "summary.close_date"},
-            {title: "Saldo Total", field: "summary.total_balance"},
-            {title: "Saldo Anterior", field: "summary.past_balance"},
-            {title: "Data de Vencimento", field: "summary.due_date"},
+            {title: "Fatura", field: "state"},
+            {title: "Data de Fechamento", field: "summary.close_date", formatter: dateFormatter },
+            {title: "Saldo Total", field: "summary.total_balance", formatter: "money" },
+            {title: "Saldo Anterior", field: "summary.past_balance", formatter: "money"},
+            {title: "Data de Vencimento", field: "summary.due_date", formatter: dateFormatter},
 
             /*{title: "Pagamentos", field: "payments"},
             {title: "Imposto", field: "tax"},
@@ -129,9 +129,9 @@ async function fetchBill(e, row, fetchCard){
     new Tabulator("#bills", {
         data: invoiceItems,
         columns: [
-            {title: "Data", field: "postDate"},
+            {title: "Data", field: "postDate", formatter: dateFormatter},
             {title: "Título", field: "title"},
-            {title: "Valor", field: "currencyAmount"},
+            {title: "Valor", field: "currencyAmount", formatter: "money"},
             {title: "Parcelas", field: "charges"},
             {title: "Categoria", field: "category"},
             //{title: "Tipo", field: "type"},
@@ -139,6 +139,17 @@ async function fetchBill(e, row, fetchCard){
         ]
     });
 };
+
+// Format the date using the Brazilian format (DD/MM/YYYY)
+function dateFormatter(cell, formatterParams, onRendered) {
+    var dateValue = cell.getValue();
+    if (!dateValue) {
+        return ""; 
+    }
+    var date = new Date(dateValue);
+    var formattedDate = ('0' + date.getDate()).slice(-2) + '/' + ('0' + (date.getMonth() + 1)).slice(-2) + '/' + date.getFullYear();
+    return formattedDate;
+}
 
 function msg(message, color = 'vermelho'){
     var messageElem = document.querySelector('#message')
