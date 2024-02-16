@@ -17,6 +17,11 @@ async function run(sessionStorage){
 async function loadBills(){
     const billsResponse = await fetchData(lift.bills_summary);
     bills = billsResponse.bills.filter(b=>b.state != 'future').slice(0, 12);
+    bills.forEach(bill => {
+        bill.state = bill.state == "overdue" ? "Passada" : "Aberta";
+        bill.summary.total_balance = bill.summary.total_balance / 100;
+        bill.summary.past_balance = bill.summary.past_balance / 100;
+    });
     var table = new Tabulator("#bills", {
         data: bills,
         rowContextMenu:[
