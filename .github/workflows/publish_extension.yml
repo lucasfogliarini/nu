@@ -19,22 +19,22 @@ jobs:
       - name: Install Dependencies
         run: npm install
 
-      - name: Copy tabulator.js
-        run: cp -R node_modules/tabulator-tables/dist/js/tabulator.min.js src
-      
-      - name: Copy tabulator.css
-        run: cp -R node_modules/tabulator-tables/dist/css/tabulator.min.css src
+      - name: Copy Tabulator (js, css)
+        run: | 
+          cp -R node_modules/tabulator-tables/dist/js/tabulator.min.js src
+          cp -R node_modules/tabulator-tables/dist/css/tabulator.min.css src
 
       - name: Zip Nu.Zip
         run: zip -r nu.zip src
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: nu
-          path: nu.zip
+          path: src
+          overwrite: true
 
-      - name: Publish extension to Chrome Web Store
+      - name: Publish Nu extension to Chrome Web Store
         uses: mnao305/chrome-extension-upload@v5.0.0
         with:
           file-path: nu.zip
