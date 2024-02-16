@@ -2,7 +2,7 @@
     "manifest_version": 3,
     "name": "Nu",
     "description": "Nu",
-    "version": "0.1",
+    "version": "1.0",
     "action": {
       "default_popup": "popup.html",
       "default_icon": "icon.png"
@@ -11,5 +11,7 @@
       "activeTab",
       "scripting"
     ],
-    "host_permissions": ["https://prod-global-webapp-proxy.nubank.com.br/*"]
-  }
+    "host_permissions": [
+      "https://prod-global-webapp-proxy.nubank.com.br/*"
+    ]
+}

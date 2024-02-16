@@ -1,16 +1,22 @@
 <html>
   <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' https://cdnjs.cloudflare.com">
+    <link rel="stylesheet" type="text/css" href="tabulator.min.css">
+    <link rel="stylesheet" type="text/css" href="styles.css">
   </head>
   <body>
     <span id="message"></span>
-    <main>      
-      <label for="billMonth">Selecione o mês e ano da fatura</label>
-      <input id="billMonth" type="month" name="billMonth">
-      <label for="cardLastFourDigits">Digite os quatro últimos digitos do cartão ou deixe em branco para todos</label>
-      <input id="cardLastFourDigits" type="number" />
-      <button id="getBill">Buscar Fatura</button>
+    <main>
+      <nav>
+          <ul>
+              <li>Faturas</li>
+          </ul>
+      </nav>
+      <div id="total"></div>
+      <div id="bills"></div>
     </main>
     <script src="popup.js"></script>
+    <script src="tabulator.min.js"></script>
   </body>
 </html>

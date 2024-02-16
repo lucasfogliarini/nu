@@ -1,0 +1,14 @@
+{
+  "name": "nu",
+  "version": "1.0.0",
+  "description": "Nu Extension",
+  "main": "popup.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Lucas Fogliarini Pedroso",
+  "license": "ISC",
+  "dependencies": {
+    "tabulator-tables": "^5.6.0"
+  }
+}

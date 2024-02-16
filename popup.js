@@ -1,70 +1,138 @@
 let lift = {};
 let acessToken = "";
+let bills = [];
 
-function run(sessionStorage){
+async function run(sessionStorage){
     if(!sessionStorage.lift){
         var message = "Precisa se autenticar no <a target='_blank' href='https://app.nubank.com.br/beta/'>Web App do Nubank</a>";
+        document.querySelector('main').style.display = 'none';
         msg(message);
+        return;
     }
     lift = JSON.parse(sessionStorage.lift);
     acessToken = JSON.parse(sessionStorage.token).access_token;
-    const bills_summary = lift.bills_summary;
-    const events = lift.events;
-    const account = lift.account;
-    const customer = lift.customer;
+    await loadBills();
 }
 
-var getBillButton = document.querySelector("#getBill");
-getBillButton.onclick = async function(){
-    const billMonth = document.querySelector('#billMonth');
-    if(!billMonth.value){
-        msg("Mês e ano da fatura é obrigatório!");
-        return;
-    }
-    const response = await fetchData(lift.bills_summary);
-    const bill = response.bills.find(b=> b.summary.close_date.includes(billMonth.value));
-    if(bill.state == "future"){
+async function loadBills(){
+    const billsResponse = await fetchData(lift.bills_summary);
+    bills = billsResponse.bills.filter(b=>b.state != 'future').slice(0, 12);
+    var table = new Tabulator("#bills", {
+        data: bills,
+        rowContextMenu:[
+            {
+                label:"Transações sem cartão (1seg)",
+                action: fetchBill
+            },
+            {
+                label:"Transações com cartão (15seg)",
+                action: function(e, row){
+                    fetchBill(e, row, true);
+                }
+            },
+        ],
+        columns: [
+            {title: "Situação", field: "state"},
+            {title: "Data de Fechamento", field: "summary.close_date"},
+            {title: "Saldo Total", field: "summary.total_balance"},
+            {title: "Saldo Anterior", field: "summary.past_balance"},
+            {title: "Data de Vencimento", field: "summary.due_date"},
+
+            /*{title: "Pagamentos", field: "payments"},
+            {title: "Imposto", field: "tax"},
+            {title: "Ajustes", field: "adjustments"},
+            {title: "Encargos de Juros", field: "interest_charge"},
+            {title: "Total Internacional", field: "total_international"},
+            {title: "Pagamento Mínimo Preciso", field: "precise_minimum_payment"},
+            {title: "Reversão de Juros", field: "interest_reversal"},
+            {title: "Despesas", field: "expenses"},
+            {title: "Créditos Totais", field: "total_credits"},
+            {title: "Data de Vencimento Efetiva", field: "effective_due_date"},
+            {title: "Imposto Internacional", field: "international_tax"},
+            {title: "Saldo Total Preciso", field: "precise_total_balance"},
+            {title: "Total Financiado", field: "total_financed"},
+            {title: "Nacional Total", field: "total_national"},
+            {title: "Saldo Anterior da Fatura", field: "previous_bill_balance"},
+            {title: "Juros", field: "interest"},
+            {title: "Total Cumulativo", field: "total_cumulative"},
+            {title: "Pago", field: "paid"},
+            {title: "Taxas", field: "fees"},
+            {title: "Total de Pagamentos", field: "total_payments"},
+            {title: "Pagamento Mínimo", field: "minimum_payment"},
+            {title: "Data de Abertura", field: "open_date"},
+            {title: "Total de Parcelas", field: "total_installments"},
+            {title: "Total Acumulado", field: "total_accrued"}*/
+        ],
+    });
+
+    table.on("rowClick", fetchBill);
+}
+
+async function fetchBill(e, row, fetchCard){
+    const selectedBill = row.getData();
+    if(selectedBill.state == "future"){
         msg('Esta fatura está no futuro, precisa estar Em Aberto ou Fechada.');
         return;
     }
-    const billSummaryResponse = await fetchData(bill._links.self.href);
+    const billSummaryResponse = await fetchData(selectedBill._links.self.href);
     const billSummary = billSummaryResponse.bill;
     const eventsResponse = await fetchData(lift.events);
     var billItemsCount = billSummary.line_items.length;
-    const cardLastFourDigits = document.querySelector('#cardLastFourDigits');
-    const card = cardLastFourDigits.value;
     const invoiceItems = [];
     for (let i = 0; i < billItemsCount; i++) {
-        let billItem = billSummary.line_items[i];
-        if (card) {
+        let billItem = billSummary.line_items[i];    
+        let invoiceItem = {
+            postDate: billItem.post_date,
+            title: billItem.title,
+            currencyAmount: billItem.amount / 100,
+            charges: billItem.charges,
+            category: billItem.type === "payment" ? "Pagamento" : billItem.category,
+            type: billItem.type || "open"
+        };
+        if (fetchCard) {
             const transactionId = billItem.href?.replace("nuapp://transaction/","");
             let billTransaction = eventsResponse.events.find(e => e.id === transactionId);
             if (billTransaction === undefined) continue;
     
             let billTransactionProcess = (i + 1) / billItemsCount * 100;
-            msg(`${billTransactionProcess.toFixed(2)}% Buscando por detalhes da transação '${billItem.title}'.`, 'green');
+            msg(`${billTransactionProcess.toFixed(2)}% Buscando pelo cartão da transação '${billItem.title}'.`, 'green');
             let transactionDetail = await fetchData(billTransaction._links.self.href);
-            const isChoicenCard = transactionDetail?.transaction?.card_last_four_digits == card;
-            if (!isChoicenCard)
-                continue;
+            invoiceItem.card = transactionDetail?.transaction?.card_last_four_digits;
         }
-    
-        let invoiceItem = {
-            PostDate: billItem.post_date,
-            Title: billItem.title,
-            CurrencyAmount: billItem.amount / 100,
-            Charges: billItem.charges,
-            Category: billItem.type === "payment" ? "Pagamento" : billItem.category,
-            Type: billItem.type || "open",
-            Card: card || "any"
-        };        
+        invoiceItem.card = invoiceItem.card || "qualquer";
         invoiceItems.push(invoiceItem);
     }
-    console.log(invoiceItems);
-    let total = invoiceItems.filter(i => i.Category != "Pagamento")
-                        .reduce((acc, curr) => acc + curr.CurrencyAmount, 0);
+    let charges = invoiceItems.filter(i => i.category != "Pagamento");
+    const totalByCard = [];
+    charges.forEach(c => {
+        var index = totalByCard.findIndex(t=>t.card === c.card);
+        if (index === -1) {
+            totalByCard.push({ card: c.card, total: c.currencyAmount });
+        } else {
+            totalByCard[index].total += c.currencyAmount;
+        }
+    });
 
-    alert(total);
+    new Tabulator("#total", {
+        data: totalByCard,
+        columns: [
+            {title: "Cartão", field: "card"},
+            {title: "Total", field: "total"}
+        ]
+    });
+
+    new Tabulator("#bills", {
+        data: invoiceItems,
+        columns: [
+            {title: "Data", field: "postDate"},
+            {title: "Título", field: "title"},
+            {title: "Valor", field: "currencyAmount"},
+            {title: "Parcelas", field: "charges"},
+            {title: "Categoria", field: "category"},
+            //{title: "Tipo", field: "type"},
+            {title: "Cartão", field: "card"},
+        ]
+    });
 };
 
 function msg(message, color = 'vermelho'){
