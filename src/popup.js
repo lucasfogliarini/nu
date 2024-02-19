@@ -16,7 +16,7 @@ async function run(sessionStorage){
 
 async function loadBills(){
     const billsResponse = await fetchData(lift.bills_summary);
-    bills = billsResponse.bills.filter(b=>b.state != 'future').slice(0, 12);
+    bills = billsResponse.bills.filter(b=>b.state != 'future');
     bills.forEach(bill => {
         bill.state = bill.state == "overdue" ? "Passada" : "Aberta";
         bill.summary.total_balance = bill.summary.total_balance / 100;
@@ -74,6 +74,7 @@ async function loadBills(){
 }
 
 async function fetchBill(e, row, fetchCard){
+    fetchCard = fetchCard || false;
     const selectedBill = row.getData();
     if(selectedBill.state == "future"){
         msg('Esta fatura está no futuro, precisa estar Em Aberto ou Fechada.');
@@ -101,10 +102,15 @@ async function fetchBill(e, row, fetchCard){
     
             let billTransactionProcess = (i + 1) / billItemsCount * 100;
             msg(`${billTransactionProcess.toFixed(2)}% Buscando pelo cartão da transação '${billItem.title}'.`, 'green');
-            let transactionDetail = await fetchData(billTransaction._links.self.href);
-            invoiceItem.card = transactionDetail?.transaction?.card_last_four_digits;
+            const transactionDetail = await fetchData(billTransaction._links.self.href);
+            const transaction = transactionDetail?.transaction;
+            if(transaction){
+                invoiceItem.card = transaction.card_last_four_digits;
+                invoiceItem.card_type = transaction.card_type == "credit_card_virtual" ? "Virtual" : "Físico";
+                invoiceItem.postDate = transaction.time;
+            }
         }
-        invoiceItem.card = invoiceItem.card || "qualquer";
+        invoiceItem.card = invoiceItem.card || "Todos";
         invoiceItems.push(invoiceItem);
     }
     let charges = invoiceItems.filter(i => i.category != "Pagamento");
@@ -112,7 +118,7 @@ async function fetchBill(e, row, fetchCard){
     charges.forEach(c => {
         var index = totalByCard.findIndex(t=>t.card === c.card);
         if (index === -1) {
-            totalByCard.push({ card: c.card, total: c.currencyAmount });
+            totalByCard.push({ card: c.card, total: c.currencyAmount, card_type: c.card_type });
         } else {
             totalByCard[index].total += c.currencyAmount;
         }
@@ -121,26 +127,30 @@ async function fetchBill(e, row, fetchCard){
     new Tabulator("#total", {
         data: totalByCard,
         columns: [
-            {title: "Cartão", field: "card"},
-            {title: "Total", field: "total"}
+            { title: "Cartão", field: "card" },
+            { title: "Total", field: "total", formatter: "money" },
+            { title: "Tipo", field: "card_type", visible: fetchCard }
         ]
     });
 
-    new Tabulator("#bills", {
+    const billsTable = new Tabulator("#bills", {
         data: invoiceItems,
         columns: [
-            {title: "Data", field: "postDate", formatter: dateFormatter},
+            {title: "Data", field: "postDate", formatter: dateFormatter },
             {title: "Título", field: "title"},
-            {title: "Valor", field: "currencyAmount", formatter: "money"},
+            {title: "Valor", field: "currencyAmount", formatter: "money" },
             {title: "Parcelas", field: "charges"},
             {title: "Categoria", field: "category"},
             //{title: "Tipo", field: "type"},
-            {title: "Cartão", field: "card"},
+            {title: "Cartão", field: "card", visible: fetchCard },
         ]
     });
+    setTimeout(() => {
+        billsTable.setSort("postDate","desc");
+    }, 100);
 };
 
-// Format the date using the Brazilian format (DD/MM/YYYY)
+// Format the date using the Brazilian format (DD/MM/YYYY hh:mm)
 function dateFormatter(cell, formatterParams, onRendered) {
     var dateValue = cell.getValue();
     if (!dateValue) {
@@ -148,6 +158,12 @@ function dateFormatter(cell, formatterParams, onRendered) {
     }
     var date = new Date(dateValue);
     var formattedDate = ('0' + date.getDate()).slice(-2) + '/' + ('0' + (date.getMonth() + 1)).slice(-2) + '/' + date.getFullYear();
+    const isDateTime = !/^\d{4}-\d{2}-\d{2}$/.test(dateValue);
+    if(isDateTime){
+        const formattedTime = ('0' + date.getHours()).slice(-2) + ':' + ('0' + date.getMinutes()).slice(-2);
+        formattedDate += ' ' + formattedTime;
+    }
+
     return formattedDate;
 }
 
