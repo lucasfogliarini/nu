@@ -19,10 +19,8 @@ jobs:
       - name: Install Dependencies
         run: npm install
 
-      - name: Copy Tabulator (js, css)
-        run: | 
-          cp -R node_modules/tabulator-tables/dist/js/tabulator.min.js src
-          cp -R node_modules/tabulator-tables/dist/css/tabulator.min.css src
+      - name: Build
+        run: npm run build
 
       - name: Zip Nu.Zip
         run: zip -r nu.zip src

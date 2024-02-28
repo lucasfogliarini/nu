@@ -1,3 +1,7 @@
+src/tabulator.*
+src/toastr.*
+src/jquery.*
+
 # Logs
 logs
 *.log

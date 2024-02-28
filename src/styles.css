@@ -1,21 +1,25 @@
- /* Estilos básicos para o menu */
- nav {
-    background-color: #333;
-    color: #fff;
+body{
+    min-width: 320px;
+    min-height: 50px;
+}
+
+header{
     padding: 10px;
+    font-size: 16px;
+    text-align: center;
 }
-nav ul {
-    list-style-type: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    justify-content: space-around;
+
+.tabulator-row-odd, header{
+    background-color: purple;
+    color: white;
 }
-nav ul li {
-    margin: 0 10px;
+
+.tabulator-row-even{
+    background-color: rgb(183, 111, 183);
+    color: purple;
 }
-nav ul li a {
-    text-decoration: none;
-    color: #fff;
-    font-weight: bold;
+
+#toast-container > div{
+    padding: 12px 14px 14px 50px;
+    width: auto;
 }

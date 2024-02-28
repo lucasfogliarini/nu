@@ -4,11 +4,14 @@
   "description": "Nu Extension",
   "main": "popup.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "copy-tabulator": "cp node_modules/tabulator-tables/dist/js/tabulator.min.js src && cp node_modules/tabulator-tables/dist/css/tabulator.min.css src",
+    "copy-toaster": "cp node_modules/toastr/toastr.js src && cp node_modules/jquery/dist/jquery.min.js src && cp node_modules/toastr/build/toastr.min.css src",
+    "build": "npm run copy-tabulator && npm run copy-toaster"
   },
   "author": "Lucas Fogliarini Pedroso",
   "license": "ISC",
   "dependencies": {
-    "tabulator-tables": "^5.6.0"
+    "tabulator-tables": "^5.6.0",
+    "toastr": "^2.1.4"
   }
 }

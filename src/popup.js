@@ -2,13 +2,13 @@ let lift = {};
 let acessToken = "";
 let bills = [];
 
+toastr.options = {
+    progressBar: true,
+    timeOut: 10000,
+    extendedTimeOut: 10000
+};
+
 async function run(sessionStorage){
-    if(!sessionStorage.lift){
-        var message = "Precisa se autenticar no <a target='_blank' href='https://app.nubank.com.br/beta/'>Web App do Nubank</a>";
-        document.querySelector('main').style.display = 'none';
-        msg(message);
-        return;
-    }
     lift = JSON.parse(sessionStorage.lift);
     acessToken = JSON.parse(sessionStorage.token).access_token;
     await loadBills();
@@ -22,6 +22,7 @@ async function loadBills(){
         bill.summary.total_balance = bill.summary.total_balance / 100;
         bill.summary.past_balance = bill.summary.past_balance / 100;
     });
+    document.querySelector('header').innerText = 'Faturas';
     var table = new Tabulator("#bills", {
         data: bills,
         rowContextMenu:[
@@ -77,7 +78,7 @@ async function fetchBill(e, row, fetchCard){
     fetchCard = fetchCard || false;
     const selectedBill = row.getData();
     if(selectedBill.state == "future"){
-        msg('Esta fatura está no futuro, precisa estar Em Aberto ou Fechada.');
+        toastr.warning('Esta fatura está no futuro, precisa estar Em Aberto ou Fechada.');
         return;
     }
     const billSummaryResponse = await fetchData(selectedBill._links.self.href);
@@ -101,7 +102,8 @@ async function fetchBill(e, row, fetchCard){
             if (billTransaction === undefined) continue;
     
             let billTransactionProcess = (i + 1) / billItemsCount * 100;
-            msg(`${billTransactionProcess.toFixed(2)}% Buscando pelo cartão da transação '${billItem.title}'.`, 'green');
+            const timeOut = billTransactionProcess == 100 ? 3000 : 10;
+            toastr.info(`${billTransactionProcess.toFixed(2)}% '${billItem.title}'.`, 'Buscando informações das transações', { timeOut: timeOut });
             const transactionDetail = await fetchData(billTransaction._links.self.href);
             const transaction = transactionDetail?.transaction;
             if(transaction){
@@ -148,6 +150,9 @@ async function fetchBill(e, row, fetchCard){
     setTimeout(() => {
         billsTable.setSort("postDate","desc");
     }, 100);
+
+    const closeDateParts = selectedBill.summary.close_date.split("-");
+    document.querySelector('header').innerText = `Transações da fatura ${closeDateParts[2]}/${closeDateParts[1]}/${closeDateParts[0]} (${selectedBill.state})`;
 };
 
 // Format the date using the Brazilian format (DD/MM/YYYY hh:mm)
@@ -157,7 +162,7 @@ function dateFormatter(cell, formatterParams, onRendered) {
         return ""; 
     }
     var date = new Date(dateValue);
-    var formattedDate = ('0' + date.getDate()).slice(-2) + '/' + ('0' + (date.getMonth() + 1)).slice(-2) + '/' + date.getFullYear();
+    var formattedDate = ('0' + date.getUTCDate()).slice(-2) + '/' + ('0' + (date.getUTCMonth() + 1)).slice(-2) + '/' + date.getUTCFullYear();
     const isDateTime = !/^\d{4}-\d{2}-\d{2}$/.test(dateValue);
     if(isDateTime){
         const formattedTime = ('0' + date.getHours()).slice(-2) + ':' + ('0' + date.getMinutes()).slice(-2);
@@ -165,12 +170,6 @@ function dateFormatter(cell, formatterParams, onRendered) {
     }
 
     return formattedDate;
-}
-
-function msg(message, color = 'vermelho'){
-    var messageElem = document.querySelector('#message')
-    messageElem.innerHTML = message;
-    messageElem.style.color = color;
 }
 
 async function fetchData(url) {
@@ -203,12 +202,15 @@ chrome.tabs.query({active: true, currentWindow: true}, tabs => {
                 };
             } 
         }, (injectionResults) => {
-            if (!chrome.runtime.lastError) {
-              const sessionStorage = injectionResults[0].result;
-              run(sessionStorage);
-            } else {
-              console.error("Erro ao executar o script:", chrome.runtime.lastError);
+            const mustAuthenticate = chrome.runtime.lastError || !injectionResults[0].result.lift;            
+            if(mustAuthenticate){
+                var message = "Precisa se autenticar no <a target='_blank' href='https://app.nubank.com.br/beta/'>Web App do Nubank</a>";
+                document.querySelector('main').style.display = 'none';
+                toastr.warning(message);
+                return;
             }
+            const sessionStorage = injectionResults[0].result;            
+            run(sessionStorage);
         });
   });
 

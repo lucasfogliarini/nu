@@ -3,19 +3,17 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' https://cdnjs.cloudflare.com">
     <link rel="stylesheet" type="text/css" href="tabulator.min.css">
+    <link rel="stylesheet" type="text/css" href="toastr.min.css">
     <link rel="stylesheet" type="text/css" href="styles.css">
   </head>
   <body>
-    <span id="message"></span>
     <main>
-      <nav>
-          <ul>
-              <li>Faturas</li>
-          </ul>
-      </nav>
+      <header>Faturas</header>
       <div id="total"></div>
       <div id="bills"></div>
     </main>
+    <script src="jquery.min.js"></script>
+    <script src="toastr.js"></script>
     <script src="popup.js"></script>
     <script src="tabulator.min.js"></script>
   </body>
