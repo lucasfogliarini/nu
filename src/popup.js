@@ -92,6 +92,7 @@ async function fetchBill(e, row, fetchCard){
             postDate: billItem.post_date,
             title: billItem.title,
             currencyAmount: billItem.amount / 100,
+            chargeNumber: billItem.index == undefined ? undefined : billItem.index + 1,
             charges: billItem.charges,
             category: billItem.type === "payment" ? "Pagamento" : billItem.category,
             type: billItem.type || "open"
@@ -141,7 +142,8 @@ async function fetchBill(e, row, fetchCard){
             {title: "Data", field: "postDate", formatter: dateFormatter },
             {title: "Título", field: "title"},
             {title: "Valor", field: "currencyAmount", formatter: "money" },
-            {title: "Parcelas", field: "charges"},
+            {title: "Nº Parcela", field: "chargeNumber"},
+            {title: "Total Parcelas", field: "charges"},
             {title: "Categoria", field: "category"},
             //{title: "Tipo", field: "type"},
             {title: "Cartão", field: "card", visible: fetchCard },
