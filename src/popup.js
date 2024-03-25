@@ -27,15 +27,15 @@ async function loadBills(){
         data: bills,
         rowContextMenu:[
             {
-                label:"Transações sem cartão (1seg)",
+                label:"Transações com cartão",
                 action: fetchBill
             },
             {
-                label:"Transações com cartão (15seg)",
+                label:"Transações sem cartão",
                 action: function(e, row){
-                    fetchBill(e, row, true);
+                    fetchBill(e, row, false);
                 }
-            },
+            }
         ],
         columns: [
             {title: "Fatura", field: "state"},
@@ -75,48 +75,53 @@ async function loadBills(){
 }
 
 async function fetchBill(e, row, fetchCard){
-    fetchCard = fetchCard || false;
+    fetchCard = (fetchCard === undefined) ? true : fetchCard;
     const selectedBill = row.getData();
+    const closeDateParts = selectedBill.summary.close_date.split("-");
+    const closeDate = `${closeDateParts[2]}/${closeDateParts[1]}/${closeDateParts[0]}`;
     if(selectedBill.state == "future"){
         toastr.warning('Esta fatura está no futuro, precisa estar Em Aberto ou Fechada.');
         return;
     }
+    toastr.info(`Buscando transações da fatura ${closeDate}`,`Buscando transações`, { timeOut: 3000 });
     const billSummaryResponse = await fetchData(selectedBill._links.self.href);
     const billSummary = billSummaryResponse.bill;
     const eventsResponse = await fetchData(lift.events);
     var billItemsCount = billSummary.line_items.length;
     const invoiceItems = [];
+    const transactionDetailPromises = [];
     for (let i = 0; i < billItemsCount; i++) {
         let billItem = billSummary.line_items[i];    
         let invoiceItem = {
+            transactionId: billItem.href?.replace("nuapp://transaction/",""),
             postDate: billItem.post_date,
             title: billItem.title,
             currencyAmount: billItem.amount / 100,
             chargeNumber: billItem.index == undefined ? undefined : billItem.index + 1,
             charges: billItem.charges,
             category: billItem.type === "payment" ? "Pagamento" : billItem.category,
-            type: billItem.type || "open"
+            type: billItem.type || "open",
+            card: "N/A"
         };
         if (fetchCard) {
-            const transactionId = billItem.href?.replace("nuapp://transaction/","");
-            let billTransaction = eventsResponse.events.find(e => e.id === transactionId);
+            let billTransaction = eventsResponse.events.find(e => e.id === invoiceItem.transactionId);
             if (billTransaction === undefined) continue;
-    
-            let billTransactionProcess = (i + 1) / billItemsCount * 100;
-            const timeOut = billTransactionProcess == 100 ? 3000 : 10;
-            toastr.info(`${billTransactionProcess.toFixed(2)}% '${billItem.title}'.`, 'Buscando informações das transações', { timeOut: timeOut });
-            const transactionDetail = await fetchData(billTransaction._links.self.href);
-            const transaction = transactionDetail?.transaction;
-            if(transaction){
-                invoiceItem.card = transaction.card_last_four_digits;
-                invoiceItem.card_type = transaction.card_type == "credit_card_virtual" ? "Virtual" : "Físico";
-                invoiceItem.postDate = transaction.time;
-            }
+            transactionDetailPromises.push(fetchData(billTransaction._links.self.href));
         }
-        invoiceItem.card = invoiceItem.card || "Todos";
         invoiceItems.push(invoiceItem);
     }
-    let charges = invoiceItems.filter(i => i.category != "Pagamento");
+    const transactionDetails = await Promise.all(transactionDetailPromises);
+    for (const transactionDetail of transactionDetails) {
+        const transaction = transactionDetail?.transaction;
+        if (transaction) {
+            const invoiceItem = invoiceItems.find(i=>i.transactionId == transaction.id);
+            invoiceItem.card = transaction.card_last_four_digits;
+            invoiceItem.card_type = transaction.card_type === "credit_card_virtual" ? "Virtual" : "Físico";
+            invoiceItem.postDate = transaction.time;
+        }
+    }
+
+    let charges = invoiceItems.filter(i => i.category != "Pagamento" && i.charges > 0);
     const totalByCard = [];
     charges.forEach(c => {
         var index = totalByCard.findIndex(t=>t.card === c.card);
@@ -153,8 +158,7 @@ async function fetchBill(e, row, fetchCard){
         billsTable.setSort("postDate","desc");
     }, 100);
 
-    const closeDateParts = selectedBill.summary.close_date.split("-");
-    document.querySelector('header').innerText = `Transações da fatura ${closeDateParts[2]}/${closeDateParts[1]}/${closeDateParts[0]} (${selectedBill.state})`;
+    document.querySelector('header').innerText = `Transações da fatura ${closeDate} (${selectedBill.state})`;
 };
 
 // Format the date using the Brazilian format (DD/MM/YYYY hh:mm)
