@@ -105,7 +105,7 @@ async function fetchBill(e, row, fetchCard){
         };
         if (fetchCard) {
             let billTransaction = eventsResponse.events.find(e => e.id === invoiceItem.transactionId);
-            if (billTransaction === undefined) continue;
+            if (billTransaction?._links?.self?.href === undefined) continue;
             transactionDetailPromises.push(fetchData(billTransaction._links.self.href));
         }
         invoiceItems.push(invoiceItem);
